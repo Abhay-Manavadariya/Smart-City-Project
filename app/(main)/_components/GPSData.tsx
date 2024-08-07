@@ -7,6 +7,7 @@ interface DataResponse {
   latitude: number;
   longitude: number;
   timestamp: number;
+  speed: number | null;
 }
 
 export const GPSData = () => {
@@ -24,13 +25,59 @@ export const GPSData = () => {
     };
   }, [watchId]);
 
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ) => {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    const distance = R * c;
+    return distance;
+  };
+
+  const calculateSpeed = (
+    prevLocation: DataResponse | null,
+    currentLocation: DataResponse
+  ): number | null => {
+    if (!prevLocation) return null;
+    const distance = calculateDistance(
+      prevLocation.latitude,
+      prevLocation.longitude,
+      currentLocation.latitude,
+      currentLocation.longitude
+    );
+    const timeElapsed =
+      (currentLocation.timestamp - prevLocation.timestamp) / 1000; // in seconds
+    const speed = distance / timeElapsed; // in meters/second
+    return speed;
+  };
+
   const startWatchingLocation = () => {
     if (navigator.geolocation) {
       const id = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           const timestamp = position.timestamp;
-          const newLocation = { latitude, longitude, timestamp };
+          const currentLocation = {
+            latitude,
+            longitude,
+            timestamp,
+            speed: null,
+          };
+          const speed = calculateSpeed(userLocation, currentLocation);
+          const newLocation = { ...currentLocation, speed };
+
           setUserLocation(newLocation);
           setLocationHistory((prevHistory) => [...prevHistory, newLocation]);
           setError(null); // Clear any previous errors
@@ -55,13 +102,13 @@ export const GPSData = () => {
   };
 
   return (
-    <div className="flex flex-col justify-center space-y-4">
-      <div>
+    <div className="flex flex-col justify-center space-y-4 p-4">
+      <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
         <Button size="lg" onClick={startWatchingLocation}>
           Start Collecting Data
         </Button>
         {watchId !== null && (
-          <Button size="lg" onClick={stopWatchingLocation} className="ml-4">
+          <Button size="lg" onClick={stopWatchingLocation}>
             Stop Collecting Data
           </Button>
         )}
@@ -72,7 +119,9 @@ export const GPSData = () => {
         </h3>
         {userLocation ? (
           <div>
-            <h2>Current User Location</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">
+              Current User Location
+            </h2>
             <p>
               <span className="font-bold">Latitude:</span>{" "}
               {userLocation.latitude}
@@ -85,6 +134,12 @@ export const GPSData = () => {
               <span className="font-bold">Timestamp:</span>{" "}
               {new Date(userLocation.timestamp).toLocaleString()}
             </p>
+            {userLocation.speed !== null && (
+              <p>
+                <span className="font-bold">Speed:</span>{" "}
+                {userLocation.speed.toFixed(2)} m/s
+              </p>
+            )}
           </div>
         ) : (
           error && <p className="text-red-500">{error}</p>
@@ -92,30 +147,40 @@ export const GPSData = () => {
         <h3 className="text-base sm:text-xl md:text-2xl font-medium mt-4">
           Location History
         </h3>
-        <table className="table-auto border-collapse border border-gray-400 mt-2">
-          <thead>
-            <tr>
-              <th className="border border-gray-300 px-4 py-2">Latitude</th>
-              <th className="border border-gray-300 px-4 py-2">Longitude</th>
-              <th className="border border-gray-300 px-4 py-2">Timestamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {locationHistory.map((location, index) => (
-              <tr key={index}>
-                <td className="border border-gray-300 px-4 py-2">
-                  {location.latitude}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {location.longitude}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {new Date(location.timestamp).toLocaleString()}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="table-auto border-collapse border border-gray-400 mt-2 w-full">
+            <thead>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2">Latitude</th>
+                <th className="border border-gray-300 px-4 py-2">Longitude</th>
+                <th className="border border-gray-300 px-4 py-2">Timestamp</th>
+                <th className="border border-gray-300 px-4 py-2">
+                  Speed (m/s)
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {locationHistory.map((location, index) => (
+                <tr key={index}>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {location.latitude}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {location.longitude}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {new Date(location.timestamp).toLocaleString()}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {location.speed !== null
+                      ? location.speed.toFixed(2)
+                      : "N/A"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
