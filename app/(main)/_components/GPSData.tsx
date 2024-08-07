@@ -102,7 +102,7 @@ export const GPSData = () => {
   };
 
   return (
-    <div className="flex flex-col justify-center space-y-4 p-4">
+    <div className="flex flex-col items-center justify-center space-y-4 p-4 md:p-8">
       <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
         <Button size="lg" onClick={startWatchingLocation}>
           Start Collecting Data
@@ -118,10 +118,8 @@ export const GPSData = () => {
           GPS Data
         </h3>
         {userLocation ? (
-          <div>
-            <h2 className="text-lg sm:text-xl font-semibold">
-              Current User Location
-            </h2>
+          <div className="text-sm sm:text-base">
+            <h2 className="font-bold">Current User Location</h2>
             <p>
               <span className="font-bold">Latitude:</span>{" "}
               {userLocation.latitude}
@@ -148,7 +146,7 @@ export const GPSData = () => {
           Location History
         </h3>
         <div className="overflow-x-auto">
-          <table className="table-auto border-collapse border border-gray-400 mt-2 w-full">
+          <table className="table-auto border-collapse border border-gray-400 mt-2 w-full text-xs sm:text-sm">
             <thead>
               <tr>
                 <th className="border border-gray-300 px-4 py-2">Latitude</th>
