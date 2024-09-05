@@ -15,7 +15,6 @@ export const GPSData = () => {
   const [locationHistory, setLocationHistory] = useState<DataResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [watchId, setWatchId] = useState<number | null>(null);
-  const [lastKnownSpeed, setLastKnownSpeed] = useState<number>(0); // Keep track of last known speed
 
   useEffect(() => {
     // Cleanup the watchPosition when the component unmounts
@@ -26,80 +25,23 @@ export const GPSData = () => {
     };
   }, [watchId]);
 
-  const calculateDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-  ) => {
-    const R = 6371e3; // Earth radius in meters
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    const distance = R * c;
-    return distance;
-  };
-
-  const calculateSpeed = (
-    prevLocation: DataResponse | null,
-    currentLocation: DataResponse
-  ): number | null => {
-    if (!prevLocation) return 0; // Set speed to 0 initially
-
-    const distance = calculateDistance(
-      prevLocation.latitude,
-      prevLocation.longitude,
-      currentLocation.latitude,
-      currentLocation.longitude
-    );
-
-    const timeElapsed =
-      (currentLocation.timestamp - prevLocation.timestamp) / 1000; // in seconds
-
-    // Add threshold to avoid speed calculation for negligible movements or time
-    const MIN_TIME_THRESHOLD = 1; // seconds
-    const MIN_DISTANCE_THRESHOLD = 1; // meters
-
-    if (timeElapsed < MIN_TIME_THRESHOLD || distance < MIN_DISTANCE_THRESHOLD) {
-      return lastKnownSpeed; // If movement is negligible, return the last known speed
-    }
-
-    const speed = distance / timeElapsed; // in meters/second
-    return speed;
-  };
-
   const startWatchingLocation = () => {
     if (navigator.geolocation) {
       const id = navigator.geolocation.watchPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
+          console.log("position :- ", position.coords);
+          const { latitude, longitude, speed } = position.coords;
           const timestamp = position.timestamp;
-          const currentLocation = {
+          const newLocation = {
             latitude,
             longitude,
             timestamp,
-            speed: null,
-          };
-
-          // Calculate speed only if previous location exists
-          const speed = calculateSpeed(userLocation, currentLocation);
-
-          const newLocation = {
-            ...currentLocation,
-            speed: speed ?? lastKnownSpeed,
+            speed,
           };
 
           setUserLocation(newLocation);
-          setLastKnownSpeed(newLocation.speed ?? 0); // Update the last known speed
           setLocationHistory((prevHistory) => [...prevHistory, newLocation]);
-          setError(null); // Clear any previous errors
+          setError(null);
         },
         (error) => {
           console.error("Error getting user location:", error);
@@ -156,7 +98,7 @@ export const GPSData = () => {
               <span className="font-bold">Speed:</span>{" "}
               {userLocation.speed !== null
                 ? userLocation.speed.toFixed(2)
-                : lastKnownSpeed.toFixed(2)}{" "}
+                : "Speed not available"}{" "}
               m/s
             </p>
           </div>
