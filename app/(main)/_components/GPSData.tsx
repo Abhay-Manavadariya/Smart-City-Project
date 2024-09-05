@@ -15,6 +15,7 @@ export const GPSData = () => {
   const [locationHistory, setLocationHistory] = useState<DataResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [watchId, setWatchId] = useState<number | null>(null);
+  const [lastKnownSpeed, setLastKnownSpeed] = useState<number>(0); // Keep track of last known speed
 
   useEffect(() => {
     // Cleanup the watchPosition when the component unmounts
@@ -50,15 +51,26 @@ export const GPSData = () => {
     prevLocation: DataResponse | null,
     currentLocation: DataResponse
   ): number | null => {
-    if (!prevLocation) return null;
+    if (!prevLocation) return 0; // Set speed to 0 initially
+
     const distance = calculateDistance(
       prevLocation.latitude,
       prevLocation.longitude,
       currentLocation.latitude,
       currentLocation.longitude
     );
+
     const timeElapsed =
       (currentLocation.timestamp - prevLocation.timestamp) / 1000; // in seconds
+
+    // Add threshold to avoid speed calculation for negligible movements or time
+    const MIN_TIME_THRESHOLD = 1; // seconds
+    const MIN_DISTANCE_THRESHOLD = 1; // meters
+
+    if (timeElapsed < MIN_TIME_THRESHOLD || distance < MIN_DISTANCE_THRESHOLD) {
+      return lastKnownSpeed; // If movement is negligible, return the last known speed
+    }
+
     const speed = distance / timeElapsed; // in meters/second
     return speed;
   };
@@ -75,17 +87,25 @@ export const GPSData = () => {
             timestamp,
             speed: null,
           };
+
+          // Calculate speed only if previous location exists
           const speed = calculateSpeed(userLocation, currentLocation);
-          const newLocation = { ...currentLocation, speed };
+
+          const newLocation = {
+            ...currentLocation,
+            speed: speed ?? lastKnownSpeed,
+          };
 
           setUserLocation(newLocation);
+          setLastKnownSpeed(newLocation.speed ?? 0); // Update the last known speed
           setLocationHistory((prevHistory) => [...prevHistory, newLocation]);
           setError(null); // Clear any previous errors
         },
         (error) => {
           console.error("Error getting user location:", error);
           setError("Failed to get user location. Please try again.");
-        }
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
       );
       setWatchId(id);
     } else {
@@ -132,12 +152,13 @@ export const GPSData = () => {
               <span className="font-bold">Timestamp:</span>{" "}
               {new Date(userLocation.timestamp).toLocaleString()}
             </p>
-            {userLocation.speed !== null && (
-              <p>
-                <span className="font-bold">Speed:</span>{" "}
-                {userLocation.speed.toFixed(2)} m/s
-              </p>
-            )}
+            <p>
+              <span className="font-bold">Speed:</span>{" "}
+              {userLocation.speed !== null
+                ? userLocation.speed.toFixed(2)
+                : lastKnownSpeed.toFixed(2)}{" "}
+              m/s
+            </p>
           </div>
         ) : (
           error && <p className="text-red-500">{error}</p>
@@ -172,7 +193,7 @@ export const GPSData = () => {
                   <td className="border border-gray-300 px-4 py-2">
                     {location.speed !== null
                       ? location.speed.toFixed(2)
-                      : "N/A"}
+                      : "0.00"}
                   </td>
                 </tr>
               ))}
