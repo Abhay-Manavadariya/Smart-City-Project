@@ -14,22 +14,22 @@ export const GPSData = () => {
   const [userLocation, setUserLocation] = useState<DataResponse | null>(null);
   const [locationHistory, setLocationHistory] = useState<DataResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [watchId, setWatchId] = useState<number | null>(null);
+  const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Cleanup the watchPosition when the component unmounts
+    // Cleanup the interval when the component unmounts
     return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
+      if (intervalId !== null) {
+        clearInterval(intervalId);
       }
     };
-  }, [watchId]);
+  }, [intervalId]);
 
   const startWatchingLocation = () => {
     if (navigator.geolocation) {
-      const id = navigator.geolocation.watchPosition(
+      navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log("position: - ", position.coords);
+          console.log("Initial position:", position.coords);
           const { latitude, longitude, speed } = position.coords;
           const timestamp = position.timestamp;
           const newLocation = {
@@ -42,14 +42,41 @@ export const GPSData = () => {
           setUserLocation(newLocation);
           setLocationHistory((prevHistory) => [...prevHistory, newLocation]);
           setError(null);
+
+          // Start collecting data every 500 milliseconds
+          const id = setInterval(() => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const { latitude, longitude, speed } = position.coords;
+                const timestamp = position.timestamp;
+                const updatedLocation = {
+                  latitude,
+                  longitude,
+                  timestamp,
+                  speed,
+                };
+                setUserLocation(updatedLocation);
+                setLocationHistory((prevHistory) => [
+                  ...prevHistory,
+                  updatedLocation,
+                ]);
+              },
+              (error) => {
+                console.error("Error updating location:", error);
+                setError("Failed to update user location. Please try again.");
+              },
+              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+          }, 500);
+
+          setIntervalId(id);
         },
         (error) => {
-          console.error("Error getting user location:", error);
-          setError("Failed to get user location. Please try again.");
+          console.error("Error getting initial location:", error);
+          setError("Failed to get initial location. Please try again.");
         },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
-      setWatchId(id);
     } else {
       console.error("Geolocation is not supported by this browser.");
       setError("Geolocation is not supported by this browser.");
@@ -57,9 +84,9 @@ export const GPSData = () => {
   };
 
   const stopWatchingLocation = () => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-      setWatchId(null);
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      setIntervalId(null);
     }
   };
 
@@ -69,7 +96,7 @@ export const GPSData = () => {
         <Button size="lg" onClick={startWatchingLocation}>
           Start Collecting Data
         </Button>
-        {watchId !== null && (
+        {intervalId !== null && (
           <Button size="lg" onClick={stopWatchingLocation}>
             Stop Collecting Data
           </Button>
