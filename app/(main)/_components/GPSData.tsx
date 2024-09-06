@@ -29,7 +29,7 @@ export const GPSData = () => {
     if (navigator.geolocation) {
       const id = navigator.geolocation.watchPosition(
         (position) => {
-          console.log("position :- ", position.coords);
+          console.log("position: - ", position.coords);
           const { latitude, longitude, speed } = position.coords;
           const timestamp = position.timestamp;
           const newLocation = {
@@ -97,9 +97,9 @@ export const GPSData = () => {
             <p>
               <span className="font-bold">Speed:</span>{" "}
               {userLocation.speed !== null
-                ? userLocation.speed.toFixed(2)
+                ? (userLocation.speed * 3.6).toFixed(2)
                 : "Speed not available"}{" "}
-              m/s
+              km/h
             </p>
           </div>
         ) : (
@@ -116,7 +116,7 @@ export const GPSData = () => {
                 <th className="border border-gray-300 px-4 py-2">Longitude</th>
                 <th className="border border-gray-300 px-4 py-2">Timestamp</th>
                 <th className="border border-gray-300 px-4 py-2">
-                  Speed (m/s)
+                  Speed (km/h)
                 </th>
               </tr>
             </thead>
@@ -134,7 +134,7 @@ export const GPSData = () => {
                   </td>
                   <td className="border border-gray-300 px-4 py-2">
                     {location.speed !== null
-                      ? location.speed.toFixed(2)
+                      ? (location.speed * 3.6).toFixed(2)
                       : "0.00"}
                   </td>
                 </tr>
